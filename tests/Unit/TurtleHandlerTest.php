@@ -1,11 +1,13 @@
 <?php
 
-use App\Services\Ontology\Exceptions\OntologyImportException;
-use App\Services\Ontology\Parsers\Handlers\TurtleHandler;
-use App\Services\Ontology\Parsers\ValueObjects\ParsedRdf;
+declare(strict_types=1);
+
+use Youri\vandenBogert\Software\ParserCore\Exceptions\ParseException;
+use Youri\vandenBogert\Software\ParserCore\ValueObjects\ParsedRdf;
+use Youri\vandenBogert\Software\ParserTurtle\TurtleHandler;
 
 beforeEach(function () {
-    $this->handler = new TurtleHandler;
+    $this->handler = new TurtleHandler();
 });
 
 it('detects turtle with prefix syntax', function () {
@@ -24,5 +26,5 @@ it('parses valid turtle', function () {
 });
 
 it('throws on invalid turtle', function () {
-    expect(fn () => $this->handler->parse('@prefix invalid'))->toThrow(OntologyImportException::class);
+    expect(fn () => $this->handler->parse('@prefix invalid'))->toThrow(ParseException::class);
 });
