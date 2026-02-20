@@ -23,22 +23,26 @@ use EasyRdf\Graph;
  * - Negative Evaluation: 4
  *
  * Results:
- * - Passed: 268 (85.6%)
+ * - Passed: 287 (91.7%)
  * - Deprecated: 2 (0.6%) — passing assertions but trigger PHP deprecation notices from EasyRdf
- * - Skipped: 43 (13.7%) — EasyRdf 1.1.1 limitations
+ * - Skipped: 24 (7.7%) — EasyRdf 1.1.1 limitations
  * - Failing: 0
  *
  * Category pass rates:
  * - Positive Syntax:    69/74  (93.2%) — 68 passed, 1 deprecated, 5 skipped
- * - Negative Syntax:    65/90  (72.2%) — 65 passed, 25 skipped
+ * - Negative Syntax:    84/90  (93.3%) — 84 passed, 6 skipped
  * - Positive Evaluation: 136/145 (93.8%) — 135 passed, 1 deprecated, 9 skipped
  * - Negative Evaluation:  0/4   (0.0%)  — 4 skipped (entire category untested due to EasyRdf permissive parsing)
  *
- * Skipped breakdown (43 total):
+ * Skipped breakdown (24 total):
  * - Positive Syntax:  5 skipped — EasyRdf does not parse valid syntax (dots in names, BASE, blank labels)
- * - Negative Syntax: 25 skipped — EasyRdf does not reject invalid syntax (permissive parsing)
+ * - Negative Syntax:  6 skipped — EasyRdf does not reject invalid syntax (BASE case, blank nodes, local name escapes)
  * - Positive Eval:    9 skipped — EasyRdf parse failures (dots in names, blankNodePropertyList, IRI resolution)
  * - Negative Eval:    4 skipped — EasyRdf does not reject semantic errors (undefined prefix, no base)
+ *
+ * Story 9-4 improvement: 19 previously-skipped negative syntax tests now pass thanks to
+ * TurtleHandler pre-parse validation (IRI whitespace/escape validation, string escape validation,
+ * surrogate codepoint detection).
  *
  * Deprecated tests (2):
  * - turtle-syntax-uri-01: EasyRdf\Resource::offsetExists deprecation
@@ -49,7 +53,7 @@ use EasyRdf\Graph;
  * - Positive evaluation: dual testing — TurtleHandler::parse() verifies no exception,
  *   then EasyRdf with base URI for content-based triple comparison (non-blank-node triples
  *   compared exactly, blank-node triples compared by count)
- * - 1 eval test (turtle-subm-02) skips TurtleHandler check due to known prefix-in-comment bug
+ * - turtle-subm-02 prefix-in-comment bug fixed in Story 9-2 (stripCommentsAndStrings)
  */
 
 function w3cFixturePath(string $filename): string
@@ -213,12 +217,13 @@ describe('W3C Positive Syntax Tests', function () {
         'turtle-syntax-blank-label' => 'turtle-syntax-blank-label.ttl',
     ];
 
+    // @skip categories: [SPARQL-style directives], [dots in names], [special chars in labels]
     $skippedPositiveSyntax = [
-        'turtle-syntax-base-02' => 'EasyRdf 1.1.1 does not support SPARQL-style BASE without @-prefix',
-        'turtle-syntax-prefix-02' => 'EasyRdf 1.1.1 does not support SPARQL-style PREFIX without @-prefix in this context',
-        'turtle-syntax-ln-dots' => 'EasyRdf 1.1.1 does not support dots in local names (easyrdf/easyrdf#140)',
-        'turtle-syntax-ns-dots' => 'EasyRdf 1.1.1 does not support dots in namespace prefixes',
-        'turtle-syntax-blank-label' => 'EasyRdf 1.1.1 does not support this blank node label pattern',
+        'turtle-syntax-base-02' => '@skip EasyRdf limitation: SPARQL-style directives — EasyRdf 1.1.1 does not support bare BASE without @-prefix',
+        'turtle-syntax-prefix-02' => '@skip EasyRdf limitation: SPARQL-style directives — EasyRdf 1.1.1 does not support bare PREFIX without @-prefix in this context',
+        'turtle-syntax-ln-dots' => '@skip EasyRdf limitation: dots in names — EasyRdf 1.1.1 does not support dots in local names (easyrdf/easyrdf#140)',
+        'turtle-syntax-ns-dots' => '@skip EasyRdf limitation: dots in names — EasyRdf 1.1.1 does not support dots in namespace prefixes (easyrdf/easyrdf#140)',
+        'turtle-syntax-blank-label' => '@skip EasyRdf limitation: special chars in labels — EasyRdf 1.1.1 does not support this blank node label pattern',
     ];
 
     foreach ($positiveSyntaxTests as $testId => $filename) {
@@ -335,32 +340,19 @@ describe('W3C Negative Syntax Tests', function () {
         'turtle-syntax-bad-missing-ns-dot-start' => 'turtle-syntax-bad-missing-ns-dot-start.ttl',
     ];
 
+    // @skip categories: [permissive BASE validation], [permissive blank node validation],
+    //   [permissive name validation], [permissive escape validation (local names)]
+    // NOTE: 19 tests previously skipped are now passing thanks to Story 9-4 pre-parse validation:
+    //   - 5 IRI validation tests (bad-uri-01..05): validateIRIs() catches whitespace and bad escapes
+    //   - 4 escape validation tests (bad-esc-01..04): validateStringEscapes() catches bad escape sequences
+    //   - 10 numeric escape tests (bad-numeric-escape-01..10): validates surrogate codepoints in strings and IRIs
     $skippedNegativeSyntax = [
-        'turtle-syntax-bad-uri-01' => 'EasyRdf 1.1.1 does not reject spaces in IRIs (permissive parsing)',
-        'turtle-syntax-bad-uri-02' => 'EasyRdf 1.1.1 does not reject bad percent-encoding in IRIs',
-        'turtle-syntax-bad-uri-03' => 'EasyRdf 1.1.1 does not reject invalid characters in IRIs',
-        'turtle-syntax-bad-uri-04' => 'EasyRdf 1.1.1 does not reject bad Unicode escapes in IRIs',
-        'turtle-syntax-bad-uri-05' => 'EasyRdf 1.1.1 does not reject bad Unicode escapes in IRIs',
-        'turtle-syntax-bad-base-02' => 'EasyRdf 1.1.1 does not reject this invalid BASE syntax',
-        'turtle-syntax-bad-bnode-01' => 'EasyRdf 1.1.1 does not reject this invalid blank node syntax',
-        'turtle-syntax-bad-bnode-02' => 'EasyRdf 1.1.1 does not reject this invalid blank node syntax',
-        'turtle-syntax-bad-numeric-escape-01' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-02' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-03' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-04' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-05' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-06' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-07' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-08' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-09' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-numeric-escape-10' => 'EasyRdf 1.1.1 does not reject bad numeric escapes',
-        'turtle-syntax-bad-esc-01' => 'EasyRdf 1.1.1 does not reject bad escape sequences in IRIs',
-        'turtle-syntax-bad-esc-02' => 'EasyRdf 1.1.1 does not reject bad escape sequences in strings',
-        'turtle-syntax-bad-esc-03' => 'EasyRdf 1.1.1 does not reject bad escape sequences in prefixed names',
-        'turtle-syntax-bad-esc-04' => 'EasyRdf 1.1.1 does not reject bad escape sequences in prefixed names',
-        'turtle-syntax-bad-pname-02' => 'EasyRdf 1.1.1 does not reject dot at end of prefixed name',
-        'turtle-syntax-bad-ln-escape' => 'EasyRdf 1.1.1 does not reject bad local name escapes',
-        'turtle-syntax-bad-ln-escape-start' => 'EasyRdf 1.1.1 does not reject bad local name escape at start',
+        'turtle-syntax-bad-base-02' => '@skip EasyRdf limitation: permissive BASE validation — does not reject @BASE (wrong case)',
+        'turtle-syntax-bad-bnode-01' => '@skip EasyRdf limitation: permissive blank node validation — does not reject _::a invalid blank node syntax',
+        'turtle-syntax-bad-bnode-02' => '@skip EasyRdf limitation: permissive blank node validation — does not reject _:abc:def invalid blank node syntax',
+        'turtle-syntax-bad-pname-02' => '@skip EasyRdf limitation: permissive name validation — does not reject dot at end of prefixed name',
+        'turtle-syntax-bad-ln-escape' => '@skip EasyRdf limitation: permissive escape validation — does not reject bad percent-encoding in local name (%2)',
+        'turtle-syntax-bad-ln-escape-start' => '@skip EasyRdf limitation: permissive escape validation — does not reject bad percent-encoding at start of local name (%2o)',
     ];
 
     foreach ($negativeSyntaxTests as $testId => $filename) {
@@ -534,23 +526,23 @@ describe('W3C Positive Evaluation Tests', function () {
         'IRI-resolution-08' => ['IRI-resolution-08.ttl', 'IRI-resolution-08.nt'],
     ];
 
+    // @skip categories: [dots in names], [special chars in labels], [blank node property lists], [IRI resolution]
     $skippedPositiveEval = [
-        'prefix_with_non_leading_extras' => 'EasyRdf 1.1.1 does not support dots in prefix names (easyrdf/easyrdf#140)',
-        'localName_with_non_leading_extras' => 'EasyRdf 1.1.1 does not support special characters in local names',
-        'labeled_blank_node_with_non_leading_extras' => 'EasyRdf 1.1.1 does not support special characters in blank node labels',
-        'sole_blankNodePropertyList' => 'EasyRdf 1.1.1 does not support standalone blank node property list as subject',
-        'blankNodePropertyList_as_subject' => 'EasyRdf 1.1.1 does not support blank node property list as subject',
-        'blankNodePropertyList_with_multiple_triples' => 'EasyRdf 1.1.1 does not support blank node property list as subject',
-        'nested_blankNodePropertyLists' => 'EasyRdf 1.1.1 does not support nested blank node property lists as subject',
-        'blankNodePropertyList_containing_collection' => 'EasyRdf 1.1.1 does not support blank node property list containing collection as subject',
-        'IRI-resolution-08' => 'EasyRdf 1.1.1 incorrectly resolves double-slash IRI paths (produces //de//xyz instead of //de/xyz)',
+        'prefix_with_non_leading_extras' => '@skip EasyRdf limitation: dots in names — does not support dots in prefix names (easyrdf/easyrdf#140)',
+        'localName_with_non_leading_extras' => '@skip EasyRdf limitation: special chars in labels — does not support special characters in local names',
+        'labeled_blank_node_with_non_leading_extras' => '@skip EasyRdf limitation: special chars in labels — does not support special characters in blank node labels',
+        'sole_blankNodePropertyList' => '@skip EasyRdf limitation: blank node property lists — does not support standalone blank node property list as subject',
+        'blankNodePropertyList_as_subject' => '@skip EasyRdf limitation: blank node property lists — does not support blank node property list as subject',
+        'blankNodePropertyList_with_multiple_triples' => '@skip EasyRdf limitation: blank node property lists — does not support blank node property list as subject',
+        'nested_blankNodePropertyLists' => '@skip EasyRdf limitation: blank node property lists — does not support nested blank node property lists as subject',
+        'blankNodePropertyList_containing_collection' => '@skip EasyRdf limitation: blank node property lists — does not support blank node property list containing collection as subject',
+        'IRI-resolution-08' => '@skip EasyRdf limitation: IRI resolution — incorrectly resolves double-slash IRI paths (produces //de//xyz instead of //de/xyz)',
     ];
 
     // Tests where TurtleHandler::parse() fails due to known TurtleHandler bugs
     // (EasyRdf direct parsing still works — these tests still verify triple content)
-    $turtleHandlerKnownFailures = [
-        'turtle-subm-02' => 'TurtleHandler prefix parser incorrectly matches @prefix inside comments',
-    ];
+    // Fixed in Story 9-2: registerPrefixesFromContent now strips comments and strings before matching
+    $turtleHandlerKnownFailures = [];
 
     foreach ($positiveEvalTests as $testId => [$actionFile, $resultFile]) {
         $test = it("[{$testId}] produces expected triples", function () use ($testId, $actionFile, $resultFile, $turtleHandlerKnownFailures) {
@@ -596,11 +588,12 @@ describe('W3C Negative Evaluation Tests', function () {
         'turtle-eval-bad-04' => 'turtle-eval-bad-04.ttl',
     ];
 
+    // @skip categories: [permissive semantic validation]
     $skippedNegativeEval = [
-        'turtle-eval-bad-01' => 'EasyRdf 1.1.1 does not reject undefined prefix usage (permissive parsing)',
-        'turtle-eval-bad-02' => 'EasyRdf 1.1.1 does not reject relative IRI without base (permissive parsing)',
-        'turtle-eval-bad-03' => 'EasyRdf 1.1.1 does not reject relative IRI without base (permissive parsing)',
-        'turtle-eval-bad-04' => 'EasyRdf 1.1.1 does not reject relative IRI without base (permissive parsing)',
+        'turtle-eval-bad-01' => '@skip EasyRdf limitation: permissive semantic validation — does not reject undefined prefix usage',
+        'turtle-eval-bad-02' => '@skip EasyRdf limitation: permissive semantic validation — does not reject relative IRI without base',
+        'turtle-eval-bad-03' => '@skip EasyRdf limitation: permissive semantic validation — does not reject relative IRI without base',
+        'turtle-eval-bad-04' => '@skip EasyRdf limitation: permissive semantic validation — does not reject relative IRI without base',
     ];
 
     foreach ($negativeEvalTests as $testId => $filename) {

@@ -63,8 +63,11 @@ ex:Person a rdfs:Class .';
         expect($this->handler->canHandle($content))->toBeFalse();
     });
 
-    // 2.8: Returns false for plain N-Triples content (no prefix declarations)
-    it('returns false for plain N-Triples content without prefixes', function () {
+    // 2.8: Returns false for plain N-Triples content without Turtle-specific features
+    // Plain N-Triples content (only <s> <p> <o> . triples) is not detected as Turtle
+    // because it lacks Turtle-specific features like @prefix, @base, 'a' keyword,
+    // semicolons, or string literals. This preserves the NTriples handler priority.
+    it('returns false for plain N-Triples content without Turtle-specific features', function () {
         $content = '<http://example.org/Person> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .';
         expect($this->handler->canHandle($content))->toBeFalse();
     });
